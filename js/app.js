@@ -151,9 +151,9 @@
     const toc = []; let body = ""; let first = true; const hero = (doc.variants || [])[0];
     (doc.blocks || []).forEach(b => {
       if (b.k === "i") { body += fig(b.w, b.h, b.src); return; }
-      if (b.s >= 26) { const id = "s" + toc.length; toc.push([id, b.t]); body += `<h2 id="${id}">${esc(b.t)}</h2>`; }
-      else if (b.s >= 18) body += `<h3>${esc(b.t)}</h3>`;
-      else if (b.s >= 16 && first) { body += `<p class="lead">${nl(b.t)}</p>`; first = false; }
+      if (b.s >= 30) { const id = "s" + toc.length; toc.push([id, b.t]); body += `<h2 id="${id}">${esc(b.t)}</h2>`; }
+      else if ((b.w || 400) >= 600) body += `<h3>${esc(b.t)}</h3>`;
+      else if (first) { body += `<p class="lead">${nl(b.t)}</p>`; first = false; }
       else body += `<p>${nl(b.t)}</p>`;
     });
     let variants = "";

@@ -31,7 +31,7 @@ export function texts(n, acc = []) {
   (n.children || []).forEach(c => texts(c, acc));
   return acc;
 }
-const textBlocks = n => texts(n).sort(byPos).map(t => ({ k: "t", s: Math.round(t.style?.fontSize || 14), t: t.characters }));
+const textBlocks = n => texts(n).sort(byPos).map(t => ({ k: "t", s: Math.round(t.style?.fontSize || 14), w: t.style?.fontWeight || 400, t: t.characters }));
 // «текстовий» фрейм: усі діти — тексти або фрейми лише з текстів
 export const isTextFrame = f => f.type === "FRAME" && (f.children || []).length > 0 &&
   f.children.every(c => c.type === "TEXT" || (c.type === "FRAME" && (c.children || []).length > 0 && c.children.every(g => g.type === "TEXT")));
