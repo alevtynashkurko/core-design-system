@@ -1,5 +1,6 @@
 (function () {
-  const T = window.TOKENS, COMPS = window.COMPONENTS, DEBT = window.TECH_DEBT || [];
+  const T = window.TOKENS, COMPS = window.COMPONENTS, DEBT = window.TECH_DEBT || [], DOCS = window.COMPONENT_DOCS || {};
+  const slugify = s => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
   const $ = (s, r = document) => r.querySelector(s);
   const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   const safeUrl = u => /^https?:\/\//i.test(u || "") ? u : "";
@@ -119,7 +120,7 @@
   function components() {
     const cats = [...new Set(COMPS.map(c => c[3]))];
     const chip = (id, label) => `<button data-s="${id}" class="${compFilter.s === id ? "on" : ""}">${label}</button>`;
-    return header("Компоненти", `Статус показує, наскільки компонент допрацьований у Figma. Файл: <a href="${window.FIGMA_COMPONENTS_URL}" target="_blank" rel="noopener">Core Components</a>.`) + `
+    return header("Компоненти", `Статус показує, наскільки компонент допрацьований у Figma. Натисніть на компонент, щоб побачити превʼю та документацію. Файл: <a href="${window.FIGMA_COMPONENTS_URL}" target="_blank" rel="noopener">Core Components</a>.`) + `
       <div class="toolbar"><input type="search" id="q" placeholder="Пошук компонента…" value="${esc(compFilter.q)}">
         <div class="seg" id="sSeg">${chip("all", `Усі ${COMPS.length}`)}${Object.keys(CSTAT).map(s => chip(s, `${CSTAT[s]} ${COMPS.filter(c => c[2] === s).length}`)).join("")}</div></div>
       <div id="compList">${compList(cats)}</div>`;
@@ -129,8 +130,47 @@
     return cats.map(cat => {
       const items = COMPS.filter(c => c[3] === cat && (compFilter.s === "all" || c[2] === compFilter.s) && c[0].toLowerCase().includes(q));
       if (!items.length) return "";
-      return `<h3>${cat}</h3><div class="comp-grid">${items.map(([n, id, s]) => `<a class="card comp" target="_blank" rel="noopener" href="${window.FIGMA_COMPONENTS_URL}?node-id=${id.replace(":", "-")}"><b>${esc(n)}</b><span class="badge b-${s}">${CSTAT[s]}</span></a>`).join("")}</div>`;
+      return `<h3>${cat}</h3><div class="comp-grid">${items.map(([n, id, s]) => `<a class="card comp" href="#/components/${slugify(n)}"><b>${esc(n)}</b><span class="comp-row"><span class="badge b-${s}">${CSTAT[s]}</span>${DOCS[slugify(n)] ? `<span class="muted" title="Є документація">📄</span>` : ""}</span></a>`).join("")}</div>`;
     }).join("") || `<div class="empty">Нічого не знайдено</div>`;
+  }
+
+
+  const API_TYPES = { VARIANT: "Variant", TEXT: "Текст", BOOLEAN: "Boolean", INSTANCE_SWAP: "Instance (іконка/компонент)" };
+  const nl = t => esc(t).replace(/\n/g, "<br>");
+  const fig = (w, h, src, cap) => `<figure class="shot"><img loading="lazy" src="${esc(src)}" ${w ? `width="${w}" height="${h}"` : ""} alt="${esc(cap || "")}" data-zoom="${esc(src)}" onerror="this.closest('figure').classList.add('missing')">${cap ? `<figcaption>${esc(cap)}</figcaption>` : ""}<div class="missing-note">Зображення ще не синхронізовано</div></figure>`;
+  function componentPage(slug) {
+    const i = COMPS.findIndex(c => slugify(c[0]) === slug);
+    if (i < 0) return `<div class="empty">Компонент не знайдено. <a href="#/components">До списку</a></div>`;
+    const [name, nodeId, status, cat] = COMPS[i], doc = DOCS[slug];
+    const figUrl = `${window.FIGMA_COMPONENTS_URL}?node-id=${nodeId.replace(":", "-")}`;
+    const head = `<div class="crumbs"><a href="#/components">Компоненти</a> / ${esc(cat)}</div>
+      <div class="detail-head"><h1>${esc(name)}</h1><span class="badge b-${status}">${CSTAT[status]}</span><a class="btn" href="${figUrl}" target="_blank" rel="noopener">Відкрити у Figma ↗</a></div>`;
+    const prev = COMPS[i - 1], next = COMPS[i + 1];
+    const pager = `<div class="pager">${prev ? `<a class="card" href="#/components/${slugify(prev[0])}"><span class="muted">← Попередній</span><b>${esc(prev[0])}</b></a>` : "<span></span>"}${next ? `<a class="card" href="#/components/${slugify(next[0])}" style="text-align:right"><span class="muted">Наступний →</span><b>${esc(next[0])}</b></a>` : "<span></span>"}</div>`;
+    if (!doc) return head + `<div class="empty" style="margin-top:24px">Документація цього компонента ще не додана${status === "todo" ? " (компонент не розпочато у Figma)" : ""}.<br><a href="${figUrl}" target="_blank" rel="noopener">Дивитись у Figma ↗</a></div>` + pager;
+    const toc = []; let body = ""; let first = true; const hero = (doc.variants || [])[0];
+    (doc.blocks || []).forEach(b => {
+      if (b.k === "i") { body += fig(b.w, b.h, b.src); return; }
+      if (b.s >= 26) { const id = "s" + toc.length; toc.push([id, b.t]); body += `<h2 id="${id}">${esc(b.t)}</h2>`; }
+      else if (b.s >= 18) body += `<h3>${esc(b.t)}</h3>`;
+      else if (b.s >= 16 && first) { body += `<p class="lead">${nl(b.t)}</p>`; first = false; }
+      else body += `<p>${nl(b.t)}</p>`;
+    });
+    let variants = "";
+    const more = (doc.variants || []).slice(1);
+    if (more.length) { toc.push(["variants", "Варіанти"]); variants = `<h2 id="variants">Варіанти</h2><p class="muted">Розміри, типи та стани компонента.</p>${more.map(v => fig(v.w, v.h, v.src, v.name)).join("")}`; }
+    let api = "";
+    if ((doc.api || []).length) {
+      toc.push(["api", "Властивості"]);
+      api = `<h2 id="api">Властивості (API)</h2><p class="muted">Параметри компонента у Figma: Variant — перемикач варіанта, Текст — редагований напис.</p>` + doc.api.map(s => `<h3>${esc(s.name)} <span class="muted" style="font-weight:400;font-size:12px">${s.variants} варіантів</span></h3>
+        <div class="tbl"><table><tr><th>Властивість</th><th>Тип</th><th>За замовчуванням</th><th>Значення</th></tr>${s.props.map(p => `<tr><td><code>${esc(p.name)}</code></td><td>${API_TYPES[p.type] || esc(p.type)}</td><td>${p.default === undefined || p.default === null ? "—" : `<code>${esc(String(p.default))}</code>`}</td><td>${p.options ? p.options.map(o => `<code class="opt">${esc(o)}</code>`).join(" ") : "—"}</td></tr>`).join("")}</table></div>`).join("");
+    }
+    let log = "";
+    if ((doc.changelog || []).length) { toc.push(["changelog", "Changelog"]); log = `<h2 id="changelog">Changelog</h2><ul>${doc.changelog.map(c => `<li>${nl(c)}</li>`).join("")}</ul>`; }
+    return `<div class="detail">${head}<div class="detail-grid"><article>
+      ${hero ? `<div class="hero-shot">${fig(hero.w, hero.h, hero.src)}</div>` : ""}
+      ${body}${variants}${api}${log}${doc.modified ? `<p class="muted" style="margin-top:32px">Оновлено у Figma: ${esc(doc.modified)}</p>` : ""}${pager}</article>
+      <aside class="toc"><b>На цій сторінці</b>${toc.map(([id, t]) => `<a href="#" data-target="${id}">${esc(t)}</a>`).join("")}</aside></div></div>`;
   }
 
   const debtFilter = { s: "all", p: "all" };
@@ -165,11 +205,13 @@
   const ROUTES = { "": home, colors, typography, spacing, radius, shadows, components, debt, archive: archivePage };
   function render() {
     const id = (location.hash.replace(/^#\/?/, "") || "").split("?")[0];
-    const page = ROUTES[id] ? id : "";
-    $("#app").innerHTML = ROUTES[page]();
+    const sub = id.startsWith("components/") ? id.slice(11) : null;
+    const page = sub ? "components" : ROUTES[id] ? id : "";
+    $("#app").innerHTML = sub ? componentPage(sub) : ROUTES[page]();
+    if (sub) { const c = COMPS.find(c => slugify(c[0]) === sub); document.title = (c ? c[0] : "Компонент") + " · Core Design System"; }
     document.querySelectorAll(".nav-link").forEach(a => a.classList.toggle("active", a.dataset.id === page));
     const titles = { "": "Core Design System", debt: "Технічний борг", archive: "Архів техборгу" };
-    document.title = (titles[page] || (NAV.find(n => n[0] === page) || [])[1] || "") + (page ? " · Core Design System" : "");
+    if (!sub) document.title = (titles[page] || (NAV.find(n => n[0] === page) || [])[1] || "") + (page ? " · Core Design System" : "");
     $("#sidebar").classList.remove("open");
     window.scrollTo(0, 0);
   }
@@ -180,6 +222,9 @@
     const m = e.target.closest("#modeSeg button"); if (m) { colorMode = m.dataset.m; const y = scrollY; render(); scrollTo(0, y); return; }
     const s = e.target.closest("#sSeg button"); if (s) { compFilter.s = s.dataset.s; const q = $("#q").value; compFilter.q = q; $("#app").innerHTML = components(); $("#q").focus(); return; }
     const d = e.target.closest(".toolbar [data-k]"); if (d) { debtFilter[d.dataset.k] = d.dataset.v; $("#app").innerHTML = debt(); return; }
+    const z = e.target.closest("[data-zoom]"); if (z) { const lb = $("#lightbox"); lb.querySelector("img").src = z.dataset.zoom; lb.classList.add("on"); return; }
+    if (e.target.closest("#lightbox")) { $("#lightbox").classList.remove("on"); return; }
+    const tc = e.target.closest(".toc a"); if (tc) { e.preventDefault(); document.getElementById(tc.dataset.target)?.scrollIntoView({ behavior: "smooth", block: "start" }); return; }
     if (e.target.id === "menuBtn") $("#sidebar").classList.toggle("open");
   });
   document.addEventListener("input", e => {

@@ -10,3 +10,16 @@
 | `data/tokens.js` | Кольори, відступи, радіуси, типографіка, тіні зі Styles-файлу Figma. |
 
 Figma: [Core Components](https://www.figma.com/design/RH0E6rqrg2JdJVpG0nGZb4/Core-Components) · [Styles](https://www.figma.com/design/AS33NnplM58ZP2G32M8QJq/Styles)
+
+## Превʼю та документація компонентів
+Сторінки компонентів (`#/components/<назва>`) генеруються зі Figma скриптом — тексти документації, зображення (превʼю, варіанти, анатомія, Do & Don't) і таблиця властивостей.
+
+1. Створіть токен у Figma: Settings → Security → Personal access tokens (доступ **File content: Read-only**).
+2. Запустіть (потрібен Node 18+):
+```bash
+FIGMA_TOKEN=figd_xxx node scripts/sync-figma.mjs            # усі компоненти
+FIGMA_TOKEN=figd_xxx node scripts/sync-figma.mjs button tag # лише вибрані
+```
+3. Закомітьте `data/component-docs.js` і папку `assets/`. Токен нікуди не потрапляє.
+
+Запускайте скрипт щоразу, коли оновили компонент або його документацію у Figma.
