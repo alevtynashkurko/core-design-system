@@ -8,14 +8,15 @@
   /* ---------- colour data ---------- */
   const STEPS = [50, 100, 200, 300, 400, 500, 600, 700, 800, 900];
   const primitives = { light: {}, dark: {} };
-  T.neutral.forEach(([n, hex]) => (primitives.light[n] = hex));
+  T.neutral.forEach(([n, hex, , dk]) => { primitives.light[n] = hex; primitives.dark[n] = dk; });
   Object.entries(T.scale).forEach(([hue, d]) => {
     STEPS.forEach((s, i) => {
       primitives.light[`${hue}/${s}`] = "#" + d.steps[i];
       primitives.dark[`${hue}/${s}`] = "#" + ((d.darkOverride && d.darkOverride[s]) || d.steps[9 - i]);
     });
   });
-  const resolve = ref => (ref[0] === "#" ? ref : primitives.light[ref]);
+  const resolve = (ref, mode = "light") => (ref[0] === "#" ? ref : primitives[mode][ref]);
+  const semDark = name => T.semanticDark[name] || T.semantic[name];
   const toast = (() => { let t; return msg => { const el = $("#toast"); el.textContent = msg; el.classList.add("show"); clearTimeout(t); t = setTimeout(() => el.classList.remove("show"), 1200); }; })();
   const copy = v => { (navigator.clipboard ? navigator.clipboard.writeText(v) : Promise.reject()).then(() => toast("Скопійовано " + v), () => toast(v)); };
 
@@ -29,7 +30,7 @@
   /* ---------- navigation ---------- */
   const NAV = [
     ["", "Огляд"],
-    ["group", "Стилі"], ["colors", "Кольори"], ["typography", "Типографіка"], ["spacing", "Відступи"], ["radius", "Радіуси"], ["shadows", "Тіні"],
+    ["group", "Стилі"], ["colors", "Кольори"], ["themes", "Темна тема"], ["typography", "Типографіка"], ["spacing", "Відступи"], ["radius", "Радіуси"], ["shadows", "Тіні"],
     ["group", "Бібліотека"], ["components", "Компоненти", COMPS.length],
     ["group", "Технічний борг"], ["debt", "Активні", open.length], ["archive", "Архів", archive.length]
   ];
@@ -64,8 +65,7 @@
     const modeBtns = `<div class="seg" id="modeSeg"><button data-m="light" class="${colorMode === "light" ? "on" : ""}">Світла</button><button data-m="dark" class="${colorMode === "dark" ? "on" : ""}">Темна</button></div>`;
     const P = primitives[colorMode], isDark = colorMode === "dark";
     const neutral = T.neutral.map(([n, hex, note]) => {
-      const v = isDark ? neutralDark(n) : hex;
-      return sw(n, v, note);
+      return sw(n, isDark ? primitives.dark[n] : hex, note);
     }).join("");
     const scales = Object.entries(T.scale).map(([hue, d]) => `<h3>${hue}</h3>
       <div class="ramp">${STEPS.map(s => { const v = P[`${hue}/${s}`]; return `<button style="background:${v};color:${textOn(v)}" data-copy="${v}" title="${hue}/${s} ${v}">${s}</button>`; }).join("")}</div>
@@ -74,19 +74,19 @@
 
     const groups = {};
     Object.entries(T.semantic).forEach(([name, ref]) => { const [cat, sub] = name.split("/"); (groups[`${cat} / ${sub || ""}`] ||= []).push([name, ref]); });
+    const cell = (hex, ref) => `<span class="dot" style="background:${hex}"></span><span class="mono" data-copy="${hex}" style="cursor:pointer">${hex.toUpperCase()}</span><div class="muted" style="font-size:12px;margin-left:28px">${esc(ref[0] === "#" ? "—" : ref)}</div>`;
     const tok = Object.entries(groups).map(([g, rows]) => `<div class="tok-group">${esc(g)}</div>
-      <table><tr><th style="width:42%">Токен</th><th>Значення</th><th>Примітив</th></tr>${rows.map(([name, ref]) => {
-        const hex = resolve(ref); const refLabel = ref[0] === "#" ? "—" : ref;
-        return `<tr><td><code>${esc(name)}</code></td><td><span class="dot" style="background:${hex}"></span><span class="mono" data-copy="${hex}" style="cursor:pointer">${hex}</span></td><td class="muted">${esc(refLabel)}</td></tr>`; }).join("")}</table>`).join("");
+      <table><tr><th style="width:38%">Токен</th><th>Світла тема</th><th>Темна тема</th></tr>${rows.map(([name, ref]) => {
+        const dref = semDark(name), changed = T.semanticDark[name] && T.semanticDark[name] !== ref;
+        return `<tr><td><code>${esc(name)}</code>${changed ? ` <span class="badge b-progress" title="Аліас у темній темі відрізняється від світлої">змінено</span>` : ""}</td><td>${cell(resolve(ref), ref)}</td><td>${cell(resolve(dref, "dark"), dref)}</td></tr>`; }).join("")}</table>`).join("");
 
     return header("Кольори", "Примітиви (палітри) та семантичні токени. Клік по кольору копіює значення.") +
-      `<div class="toolbar">${modeBtns}${isDark ? `<span class="muted">Показано примітиви темної теми; семантичні токени для темної теми у Figma ще не налаштовані.</span>` : ""}</div>
+      `<div class="toolbar">${modeBtns}<span class="muted">Перемикає відображення примітивів. Семантичні токени нижче показані в обох темах.</span></div>
       <h2 style="margin-top:8px">Neutral</h2><div class="swatches">${neutral}</div>${scales}
-      <h2>Семантичні токени <span class="badge b-progress" style="vertical-align:middle">Light mode</span></h2>${tok}`;
+      <h2>Семантичні токени</h2><p class="muted">Позначка «змінено» — токен у темній темі посилається на інший примітив, ніж у світлій. Решта беруть той самий аліас, але з темного набору примітивів. Детальніше — на сторінці <a href="#/themes">Темна тема</a>.</p>${tok}`;
   }
   const v = s => s.slice(1).toUpperCase();
-  const neutralDark = n => { const l = T.neutral.map(x => x[0]); const hexes = T.neutral.map(x => x[1]); return hexes[l.length - 1 - l.indexOf(n)]; };
-  const sw = (name, hex, note) => `<button class="sw" data-copy="${hex}" title="${esc(note || "")}"><div class="c" style="background:${hex}"></div><div class="t"><b>${esc(name.split("/")[1])}</b><span>${hex}</span></div></button>`;
+    const sw = (name, hex, note) => `<button class="sw" data-copy="${hex}" title="${esc(note || "")}"><div class="c" style="background:${hex}"></div><div class="t"><b>${esc(name.split("/")[1])}</b><span>${hex}</span></div></button>`;
   function textOn(hex) { const n = parseInt(hex.slice(1, 7), 16), r = n >> 16, g = (n >> 8) & 255, b = n & 255; return (r * 299 + g * 587 + b * 114) / 1000 > 150 ? "#202022" : "#fff"; }
 
   function typography() {
@@ -113,7 +113,7 @@
   }
   function shadows() {
     return header("Тіні", "Effect styles. Тіні Ant Design (Divider, Theme, Button, Table тощо) видалені із системи й більше не використовуються.") +
-      `<div class="shadows" style="margin-top:28px">${T.shadows.map(([n, css, d]) => `<div><div class="shadow-demo" style="box-shadow:${css}"></div><b>${esc(n)}</b><div class="muted">${esc(d)}</div><div class="mono muted" style="cursor:pointer;margin-top:6px;word-break:break-word" data-copy="${esc(css)}">${esc(css)}</div></div>`).join("")}</div>`;
+      `<div class="shadows" style="margin-top:28px">${T.shadows.map(([n, css, d]) => `<div><div class="shadow-demo" style="box-shadow:${css}"></div><b>${esc(n)}</b><div class="muted">${esc(d)}</div><div class="mono muted" style="cursor:pointer;margin-top:6px;word-break:break-word" data-copy="${esc(css)}">${esc(css)}</div></div>`).join("")}</div><p class="muted" style="margin-top:24px">Значення для темної теми — на сторінці <a href="#/themes">Темна тема</a>.</p>`;
   }
 
   const compFilter = { q: "", s: "all" };
@@ -201,8 +201,58 @@
     return header("Архів техборгу", "Закриті пункти, від найновіших.") + `<div class="debt" style="margin-top:24px">${list.length ? list.map(d => debtCard(d, true)).join("") : `<div class="empty">Архів порожній — закриті пункти зʼявляться тут.</div>`}</div>`;
   }
 
+
+  /* ---------- темна тема ---------- */
+  const themeState = { view: "both", screen: "list" };
+  const lumOf = hex => { const n = parseInt(hex.slice(1, 7), 16), c = [n >> 16, (n >> 8) & 255, n & 255].map(v => { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); }); return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]; };
+  const contrast = (a, b) => { const [x, y] = [lumOf(a), lumOf(b)].sort((p, q) => q - p); return (x + 0.05) / (y + 0.05); };
+  const tokHex = (name, mode) => resolve(mode === "dark" ? semDark(name) : T.semantic[name], mode);
+  const PAIRS = [
+    ["Основний текст на картці", "Text/Neutral/Text", "BG/Neutral/BG-default"], ["Другорядний текст (опис)", "Text/Neutral/Text-description", "BG/Neutral/BG-default"],
+    ["Текст на фоні сторінки", "Text/Neutral/Text", "BG/Neutral/BG-grey-light"], ["Плейсхолдер у полі", "Text/Neutral/Text-placeholder", "BG/Input/BG-input"],
+    ["Посилання", "Link/Text-link", "BG/Neutral/BG-default"], ["Акцентний текст (Primary)", "Text/Accent/Primary-text", "BG/Neutral/BG-default"],
+    ["Danger-текст", "Text/Accent/Danger-text", "BG/Neutral/BG-default"], ["Success-текст", "Text/Accent/Success-text", "BG/Neutral/BG-default"],
+    ["Текст на головній кнопці", "Text/Inverse/Default-inverse", "BG/Actions/BG-primary"], ["Текст на вторинній кнопці", "Text/Inverse/Default-inverse", "BG/Actions/BG-secondary"],
+    ["Текст у Success-тегу", "Text/Accent/Success-text-bold", "BG/Accent/BG-success"], ["Текст у Danger-тегу", "Text/Accent/Danger-text-bold", "BG/Accent/BG-danger"]
+  ];
+  const ratio = (fg, bg, mode) => contrast(tokHex(fg, mode), tokHex(bg, mode));
+  const SCREENS_META = { list: ["Список з таблицею", 960], contract: ["Договір · Загальна інформація", 960], object: ["Картка об'єкту · Загальна інформація", 960] };
+  function themes() {
+    const modes = themeState.view === "both" ? ["light", "dark"] : [themeState.view];
+    const seg = (id, items, cur) => `<div class="seg" id="${id}">${items.map(([k, l]) => `<button data-v="${k}" class="${cur === k ? "on" : ""}">${l}</button>`).join("")}</div>`;
+    const shots = modes.map(m => `<div class="theme-label"><b>${m === "dark" ? "Темна тема" : "Світла тема"}</b><span class="muted mono">data-theme="${m}"</span></div>
+      <div class="scr-wrap" data-theme="${m}" data-h="${SCREENS_META[themeState.screen][1]}"><div class="scr-scale">${window.SCREENS[themeState.screen]()}</div></div>`).join("");
+    const rows = PAIRS.map(([label, fg, bg]) => { const l = ratio(fg, bg, "light"), d = ratio(fg, bg, "dark"); const c = r => `<span class="${r >= 4.5 ? "ok" : r >= 3 ? "warn" : "bad"}-t">${r.toFixed(1)}</span> <span class="muted" style="font-size:12px">${r >= 7 ? "AAA" : r >= 4.5 ? "AA" : r >= 3 ? "лише великий текст" : "нижче 3"}</span>`; return `<tr><td>${label}<div class="mono muted">${fg} → ${bg}</div></td><td>${c(l)}</td><td>${c(d)}</td></tr>`; }).join("");
+    const sh = T.shadows.map(([n], i) => `<div><div class="shadow-pair"><div class="sh-demo" data-theme="light"><i style="box-shadow:${T.shadows[i][1]}"></i></div><div class="sh-demo" data-theme="dark"><i style="box-shadow:${T.shadowsDark[i]}"></i></div></div><b>${esc(n)}</b></div>`).join("");
+    const ovr = Object.keys(T.semanticDark).length, total = Object.keys(T.semantic).length;
+    return header("Темна тема", "Токени темної теми згенеровані з існуючої палітри: нових кольорів не додавалось, змінюється лише набір примітивів і ключові поверхні.") + `
+    <div class="grid principles">
+      <div class="card"><b>1. Примітиви</b><p class="muted">Колекція <code>Colors primitives</code> має режим <em>Dark Mode</em>: кожна шкала (Blue, Orange, Green…) віддзеркалена — 500 у темній ≈ 400 у світлій. Нейтральні мають власні значення.</p></div>
+      <div class="card"><b>2. Семантичні токени</b><p class="muted">${total - ovr} із ${total} токенів у темній темі посилаються на той самий аліас, що й у світлій, але на темне значення примітиву. Переозначено ${ovr} (позначка «змінено» на сторінці <a href="#/colors">Кольори</a>).</p></div>
+      <div class="card"><b>3. Поверхні</b><p class="muted">Фон сторінки — <code>Neutral/0</code> (#000), картки й панелі — <code>Neutral/25</code> (#343437), поля вводу — на тон темніші за картку. Світліше = ближче до користувача.</p></div>
+      <div class="card"><b>4. Стани</b><p class="muted">У темній темі <em>hover</em> світліший за базовий, <em>pressed/focused</em> темніший (у світлій — навпаки). Текст на заповнених кнопках — чорний (<code>Text/Inverse</code>).</p></div>
+    </div>
+    <h2>Приклади екранів</h2>
+    <p class="muted">Екрани зібрані лише з семантичних токенів: змінюється атрибут <code>data-theme</code>, жодних окремих «темних» стилів.</p>
+    <div class="toolbar">${seg("scrSeg", Object.entries(SCREENS_META).map(([k, v]) => [k, v[0]]), themeState.screen)}${seg("viewSeg", [["both", "Поруч"], ["light", "Світла"], ["dark", "Темна"]], themeState.view)}</div>
+    ${shots}
+    <h2>Контраст (WCAG)</h2><p class="muted">Співвідношення яскравості текст/фон. AA = 4.5 для звичайного тексту, 3 — для великого. Значення світлої теми — як є у Figma.</p>
+    <table><tr><th>Пара токенів</th><th>Світла</th><th>Темна</th></tr>${rows}</table>
+    <h2>Тіні</h2><p class="muted">На темному фоні тіні майже не видно, тому непрозорість збільшена.</p><div class="shadows">${sh}</div>
+    <h2>Підключення</h2>
+    <p>Усі токени доступні як CSS-змінні та JSON. Тему вмикає атрибут на будь-якому контейнері:</p>
+    <pre class="code">&lt;link rel="stylesheet" href="css/tokens.css"&gt;
+&lt;html data-theme="dark"&gt;   &lt;!-- або "light" --&gt;
+
+.card { background: var(--bg-neutral-bg-default); color: var(--text-neutral-text); }</pre>
+    <p><a class="btn" style="margin:0" href="css/tokens.css" download>css/tokens.css</a> <a class="btn" style="margin:0 0 0 8px" href="tokens/design-tokens.json" download>design-tokens.json</a></p>`;
+  }
+  function fitScreens() {
+    document.querySelectorAll(".scr-wrap").forEach(w => { const k = w.clientWidth / 1440; const inner = w.firstElementChild; inner.style.transform = `scale(${k})`; w.style.height = (+w.dataset.h * k) + "px"; });
+  }
+
   /* ---------- router ---------- */
-  const ROUTES = { "": home, colors, typography, spacing, radius, shadows, components, debt, archive: archivePage };
+  const ROUTES = { "": home, colors, themes, typography, spacing, radius, shadows, components, debt, archive: archivePage };
   function render() {
     const id = (location.hash.replace(/^#\/?/, "") || "").split("?")[0];
     const sub = id.startsWith("components/") ? id.slice(11) : null;
@@ -214,14 +264,17 @@
     if (!sub) document.title = (titles[page] || (NAV.find(n => n[0] === page) || [])[1] || "") + (page ? " · Core Design System" : "");
     $("#sidebar").classList.remove("open");
     window.scrollTo(0, 0);
+    fitScreens();
   }
   window.addEventListener("hashchange", render);
+  window.addEventListener("resize", fitScreens);
 
   document.addEventListener("click", e => {
     const c = e.target.closest("[data-copy]"); if (c) { copy(c.dataset.copy); return; }
     const m = e.target.closest("#modeSeg button"); if (m) { colorMode = m.dataset.m; const y = scrollY; render(); scrollTo(0, y); return; }
     const s = e.target.closest("#sSeg button"); if (s) { compFilter.s = s.dataset.s; const q = $("#q").value; compFilter.q = q; $("#app").innerHTML = components(); $("#q").focus(); return; }
     const d = e.target.closest(".toolbar [data-k]"); if (d) { debtFilter[d.dataset.k] = d.dataset.v; $("#app").innerHTML = debt(); return; }
+    const ts = e.target.closest("#scrSeg button, #viewSeg button"); if (ts) { themeState[ts.parentElement.id === "scrSeg" ? "screen" : "view"] = ts.dataset.v; const y = scrollY; render(); scrollTo(0, y); return; }
     const z = e.target.closest("[data-zoom]"); if (z) { const lb = $("#lightbox"); lb.querySelector("img").src = z.dataset.zoom; lb.classList.add("on"); return; }
     if (e.target.closest("#lightbox")) { $("#lightbox").classList.remove("on"); return; }
     const tc = e.target.closest(".toc a"); if (tc) { e.preventDefault(); document.getElementById(tc.dataset.target)?.scrollIntoView({ behavior: "smooth", block: "start" }); return; }

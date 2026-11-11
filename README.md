@@ -23,3 +23,8 @@ FIGMA_TOKEN=figd_xxx node scripts/sync-figma.mjs button tag # лише вибр�
 3. Закомітьте `data/component-docs.js` і папку `assets/`. Токен нікуди не потрапляє.
 
 Запускайте скрипт щоразу, коли оновили компонент або його документацію у Figma.
+
+## Теми (світла / темна)
+- `data/tokens.js` — єдине джерело токенів. Темна тема: `neutral[..][3]` і `scale.*.darkOverride` (примітиви), `semanticDark` (лише переозначені семантичні токени), `shadowsDark`.
+- `node scripts/build-tokens.mjs` — генерує `css/tokens.css` (змінні для `data-theme="light|dark"`) і `tokens/design-tokens.json`.
+- Екрани-приклади для сторінки «Темна тема»: `js/screens.js` + `css/screens.css`.

@@ -1,10 +1,11 @@
 // Дані зі Styles (Figma: AS33NnplM58ZP2G32M8QJq). Оновлюйте при зміні стилів у Figma.
 window.TOKENS = {
+  // [назва, світла тема, опис, темна тема]
   neutral: [
-    ["Neutral/1000","#000000",""],["Neutral/900","#202022","Основний текст на білому тлі"],["Neutral/800","#343437",""],
-    ["Neutral/700","#48484c",""],["Neutral/600","#5c5c61",""],["Neutral/500","#6e7077","Вторинний текст"],
-    ["Neutral/400","#84868c",""],["Neutral/300","#9a9ca1",""],["Neutral/200","#b0b2b6","Disabled текст"],
-    ["Neutral/100","#d7d9da",""],["Neutral/50","#f1f2f3",""],["Neutral/25","#fafafa","Disabled фон"],["Neutral/0","#ffffff",""]
+    ["Neutral/1000","#000000","","#ffffff"],["Neutral/900","#202022","Основний текст на білому тлі","#fafafa"],["Neutral/800","#343437","","#f2f2f3"],
+    ["Neutral/700","#48484c","","#e4e5e7"],["Neutral/600","#5c5c61","","#caccce"],["Neutral/500","#6e7077","Вторинний текст","#b0b2b6"],
+    ["Neutral/400","#84868c","","#9a9ca1"],["Neutral/300","#9a9ca1","","#84868c"],["Neutral/200","#b0b2b6","Disabled текст","#6e7077"],
+    ["Neutral/100","#d7d9da","","#5c5c61"],["Neutral/50","#f1f2f3","","#48484c"],["Neutral/25","#fafafa","Disabled фон","#343437"],["Neutral/0","#ffffff","","#000000"]
   ],
   // Світла тема, ступені 50…900. Темна тема = дзеркальний порядок (див. app.js), крім overrides.
   scale: {
@@ -51,6 +52,45 @@ window.TOKENS = {
     "Border/Accent/Danger-border":"Red/500","Border/Accent/Danger-border-hover":"Red/400","Border/Accent/Danger-border-focused":"Red/600","Border/Accent/Info-border":"Blue/500",
     "Border/Inverse/Border-inverse":"Neutral/25"
   },
+  // Темна тема: токени, що НЕ повторюють світлий аліас. Усі інші беруть той самий аліас, але з темного набору примітивів (Colors primitives → Dark Mode).
+  // Логіка: поверхні — Neutral/0 (фон сторінки) і Neutral/25 (картки); hover світліший, pressed/focused темніший; danger-текст світліший для контрасту ≥ 4.5.
+  semanticDark: {
+    "BG/Accent/BG-danger-bold-focused":"Red/400",
+    "BG/Accent/BG-info-bold":"Blue/300",
+    "BG/Accent/BG-danger-bold-hover":"Red/600",
+    "BG/Actions/BG-danger-bold-focused":"Red/400",
+    "BG/Actions/BG-danger-bold-hover":"Red/600",
+    "BG/Actions/BG-primary-focused":"Orange/400",
+    "BG/Actions/BG-primary-hover":"Orange/600",
+    "BG/Actions/BG-secondary-focused":"Blue/400",
+    "BG/Actions/BG-secondary-hover":"Blue/600",
+    "BG/Neutral/BG-default":"Neutral/25",
+    "BG/Neutral/BG-grey-light":"Neutral/0",
+    "BG/Overlay/BG-overlay":"#000000a6",
+    "BG/Overlay/BG-tooltip":"#fafafabf",
+    "Border/Accent/Danger-border-focused":"Red/400",
+    "Border/Accent/Danger-border-hover":"Red/600",
+    "Border/Accent/Primary-border-focused":"Orange/400",
+    "Border/Accent/Primary-border-hover":"Orange/600",
+    "Border/Accent/Secondary-border-focused":"Blue/400",
+    "Border/Accent/Secondary-border-hover":"Blue/600",
+    "Icon/Accent/Danger-icon":"Red/600",
+    "Icon/Accent/Danger-icon-focused":"Red/500",
+    "Icon/Accent/Danger-icon-hover":"Red/700",
+    "Icon/Accent/Primary-icon-focused":"Blue/400",
+    "Icon/Accent/Primary-icon-hover":"Blue/600",
+    "Icon/Accent/Secondary-icon-focused":"Orange/400",
+    "Icon/Accent/Secondary-icon-hover":"Orange/600",
+    "Link/Text-link-hover":"Blue/600",
+    "Link/Text-link-pressed":"Blue/400",
+    "Text/Accent/Danger-text":"Red/600",
+    "Text/Accent/Danger-text-focused":"Red/500",
+    "Text/Accent/Danger-text-hover":"Red/700",
+    "Text/Accent/Primary-text-focused":"Blue/400",
+    "Text/Accent/Primary-text-hover":"Blue/600",
+    "Text/Accent/Secondary-text-focused":"Orange/400",
+    "Text/Accent/Secondary-text-hover":"Orange/600"
+  },
   spacing: [["None",0],["3XS",2],["2XS",4],["XS",6],["S",8],["M",12],["L",16],["XL",20],["2XL",24],["3XL",32],["4XL",48],["5XL",56],["6XL",64],["7XL",72],["8XL",80],["9XL",96]],
   radius: [["None",0,""],["XS",2,""],["S",4,"Buttons, Inputs, Modals, Menus, Status, Scroll, Tags, Date picker"],["M",6,""],["L",8,""],["XL",12,""],["2XL",16,""],["3XL",24,""],["99XL",9999,"Повне заокруглення (pill / circle)"]],
   typography: {
@@ -67,5 +107,12 @@ window.TOKENS = {
     ["Shadow - Level 2","0 8px 16px 0 rgba(0,0,0,.15), 0 2px 8px 0 rgba(0,0,0,.15)","Найінтенсивніша тінь: Float button, Dropdown, Cascader Menu тощо."],
     ["Input - Active","0 0 0 3px rgba(116,174,255,.2)","Активний стан інпутів."],
     ["Shadow - Float button","0 9px 28px 8px rgba(0,0,0,.05), 0 3px 6px -4px rgba(0,0,0,.12), 0 6px 16px 0 rgba(0,0,0,.08)","Float button."]
+  ],
+  // Темна тема: тіні майже невидимі на темному тлі, тому непрозорість збільшена.
+  shadowsDark: [
+    "0 6px 20px 0 rgba(0,0,0,.45), 0 1px 6px 0 rgba(0,0,0,.45)",
+    "0 8px 16px 0 rgba(0,0,0,.6), 0 2px 8px 0 rgba(0,0,0,.6)",
+    "0 0 0 3px rgba(126,174,255,.3)",
+    "0 9px 28px 8px rgba(0,0,0,.25), 0 3px 6px -4px rgba(0,0,0,.5), 0 6px 16px 0 rgba(0,0,0,.4)"
   ]
 };
