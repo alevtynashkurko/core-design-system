@@ -28,3 +28,6 @@ FIGMA_TOKEN=figd_xxx node scripts/sync-figma.mjs button tag # лише вибр�
 - `data/tokens.js` — єдине джерело токенів. Темна тема: `neutral[..][3]` і `scale.*.darkOverride` (примітиви), `semanticDark` (лише переозначені семантичні токени), `shadowsDark`.
 - `node scripts/build-tokens.mjs` — генерує `css/tokens.css` (змінні для `data-theme="light|dark"`) і `tokens/design-tokens.json`.
 - Екрани-приклади для сторінки «Темна тема»: `js/screens.js` + `css/screens.css`.
+
+## Перед публікацією
+`node scripts/bump-version.mjs` — оновлює версію файлів у `index.html`, щоб після пушу всі бачили свіжу версію сайту, а не кеш браузера.
