@@ -45,6 +45,7 @@
     return header("Core Design System", "Публічна бібліотека стилів і компонентів із Figma, а також реєстр технічного боргу.") + `
     <div class="grid hero-cards">
       <a class="card" href="#/colors"><div class="stat">${Object.keys(primitives.light).length}</div>кольорових примітивів</a>
+      <a class="card" href="#/themes"><div class="stat">2</div>теми · превʼю на екранах</a>
       <a class="card" href="#/typography"><div class="stat">${T.typography.groups.length}</div>груп типографіки</a>
       <a class="card" href="#/components"><div class="stat">${COMPS.length}</div>компонентів · ${cnt("ready")} готово</a>
       <a class="card" href="#/debt"><div class="stat">${open.length}</div>відкритих пунктів техборгу</a>
@@ -82,7 +83,8 @@
 
     return header("Кольори", "Примітиви (палітри) та семантичні токени. Клік по кольору копіює значення.") +
       `<div class="toolbar">${modeBtns}<span class="muted">Перемикає відображення примітивів. Семантичні токени нижче показані в обох темах.</span></div>
-      <h2 style="margin-top:8px">Neutral</h2><div class="swatches">${neutral}</div>${scales}
+      <h2 style="margin-top:8px">Превʼю на екранах платформи</h2><p class="muted">Реальні екрани системи у світлій і темній темі. Перемикайте екран і тему, щоб оцінити палітру в контексті.</p>${previewBlock()}
+      <h2>Neutral</h2><div class="swatches">${neutral}</div>${scales}
       <h2>Семантичні токени</h2><p class="muted">Позначка «змінено» — токен у темній темі посилається на інший примітив, ніж у світлій. Решта беруть той самий аліас, але з темного набору примітивів. Детальніше — на сторінці <a href="#/themes">Темна тема</a>.</p>${tok}`;
   }
   const v = s => s.slice(1).toUpperCase();
@@ -217,11 +219,14 @@
   ];
   const ratio = (fg, bg, mode) => contrast(tokHex(fg, mode), tokHex(bg, mode));
   const SCREENS_META = { list: ["Список з таблицею", 960], contract: ["Договір · Загальна інформація", 960], object: ["Картка об'єкту · Загальна інформація", 960] };
-  function themes() {
+  function previewBlock() {
     const modes = themeState.view === "both" ? ["light", "dark"] : [themeState.view];
     const seg = (id, items, cur) => `<div class="seg" id="${id}">${items.map(([k, l]) => `<button data-v="${k}" class="${cur === k ? "on" : ""}">${l}</button>`).join("")}</div>`;
     const shots = modes.map(m => `<div class="theme-label"><b>${m === "dark" ? "Темна тема" : "Світла тема"}</b><span class="muted mono">data-theme="${m}"</span></div>
       <div class="scr-wrap" data-theme="${m}" data-h="${SCREENS_META[themeState.screen][1]}"><div class="scr-scale">${window.SCREENS[themeState.screen]()}</div></div>`).join("");
+    return `<div class="toolbar">${seg("scrSeg", Object.entries(SCREENS_META).map(([k, v]) => [k, v[0]]), themeState.screen)}${seg("viewSeg", [["both", "Поруч"], ["light", "Світла"], ["dark", "Темна"]], themeState.view)}</div>${shots}`;
+  }
+  function themes() {
     const rows = PAIRS.map(([label, fg, bg]) => { const l = ratio(fg, bg, "light"), d = ratio(fg, bg, "dark"); const c = r => `<span class="${r >= 4.5 ? "ok" : r >= 3 ? "warn" : "bad"}-t">${r.toFixed(1)}</span> <span class="muted" style="font-size:12px">${r >= 7 ? "AAA" : r >= 4.5 ? "AA" : r >= 3 ? "лише великий текст" : "нижче 3"}</span>`; return `<tr><td>${label}<div class="mono muted">${fg} → ${bg}</div></td><td>${c(l)}</td><td>${c(d)}</td></tr>`; }).join("");
     const sh = T.shadows.map(([n], i) => `<div><div class="shadow-pair"><div class="sh-demo" data-theme="light"><i style="box-shadow:${T.shadows[i][1]}"></i></div><div class="sh-demo" data-theme="dark"><i style="box-shadow:${T.shadowsDark[i]}"></i></div></div><b>${esc(n)}</b></div>`).join("");
     const ovr = Object.keys(T.semanticDark).length, total = Object.keys(T.semantic).length;
@@ -234,8 +239,7 @@
     </div>
     <h2>Приклади екранів</h2>
     <p class="muted">Екрани зібрані лише з семантичних токенів: змінюється атрибут <code>data-theme</code>, жодних окремих «темних» стилів.</p>
-    <div class="toolbar">${seg("scrSeg", Object.entries(SCREENS_META).map(([k, v]) => [k, v[0]]), themeState.screen)}${seg("viewSeg", [["both", "Поруч"], ["light", "Світла"], ["dark", "Темна"]], themeState.view)}</div>
-    ${shots}
+    ${previewBlock()}
     <h2>Контраст (WCAG)</h2><p class="muted">Співвідношення яскравості текст/фон. AA = 4.5 для звичайного тексту, 3 — для великого. Значення світлої теми — як є у Figma.</p>
     <table><tr><th>Пара токенів</th><th>Світла</th><th>Темна</th></tr>${rows}</table>
     <h2>Тіні</h2><p class="muted">На темному фоні тіні майже не видно, тому непрозорість збільшена.</p><div class="shadows">${sh}</div>
